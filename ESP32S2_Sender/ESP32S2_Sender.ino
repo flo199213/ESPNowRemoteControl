@@ -42,7 +42,13 @@
 //===============================================================
 // Defines
 //===============================================================
-#define PIN_BUTTON  0     // GPIO 0  -> Wemos S2 Mini PCB push button
+#define PIN_BUTTON1     3     // GPIO 3
+#define PIN_BUTTON2     37    // GPIO 37
+#define PIN_BUTTON3     11    // GPIO 11
+#define PIN_BUTTON4     16    // GPIO 16
+#define PIN_LED_GND     35    // GPIO 35
+#define PIN_LED_VCC     5     // GPIO 5
+#define PIN_KEEPALIVE   7     // GPIO 7
 
 //===============================================================
 // Global Variables
@@ -54,8 +60,7 @@ uint8_t broadcastAddress[] = { 0x84, 0xfc, 0xe6, 0xd1, 0x21, 0x94 };
 // Must match the sender structure
 typedef struct exchange_struct
 {
-  int throttle;
-  int steering;
+  int buttons;
 } exchange_struct;
 
 // Create a struct_message called exchangeData
@@ -64,63 +69,34 @@ exchange_struct exchangeData;
 // ESP Now pairing info
 esp_now_peer_info_t peerInfo;
 
-// Debounce variable
-bool buttonDebounce = true;
-
-//===============================================================
-// Callback when data is sent
-//===============================================================
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
-  char macStr[18];
-  Serial.print("Packet to: ");
-
-  // Copies the sender mac address to a string
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  Serial.print(macStr);
-  Serial.print(" send status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-}
+// Input variable
+int buttons = 0;
 
 //===============================================================
 // Setup
 //===============================================================
 void setup()
 {
-  // Initialize serial monitor
-  Serial.begin(115200);
+  // Initialize pin modes
+  pinMode(PIN_BUTTON1, INPUT_PULLDOWN);
+  pinMode(PIN_BUTTON2, INPUT_PULLDOWN);
+  pinMode(PIN_BUTTON3, INPUT_PULLDOWN);
+  pinMode(PIN_BUTTON4, INPUT_PULLDOWN);
+  pinMode(PIN_KEEPALIVE, OUTPUT);
+  pinMode(PIN_LED_GND, OUTPUT);
+  pinMode(PIN_LED_VCC, OUTPUT);
+  
+  // Set keep alive
+  digitalWrite(PIN_KEEPALIVE, HIGH);
 
-  // Enable button input
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
- 
+  // Read button input
+  ReadButtonsState();
+
   // Set device as a Wi-Fi station
   WiFi.mode(WIFI_STA);
- 
-  // Init ESP-NOW
-  if (esp_now_init() != ESP_OK)
-  {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
 
-  // Set ESP32 to full TX power and long range
-  esp_wifi_set_max_tx_power(127);
-  esp_wifi_set_protocol(WIFI_IF_STA , WIFI_PROTOCOL_LR);
-  
-  // Once ESPNow is successfully Init, we will register for send CB to get send info
-  esp_now_register_send_cb(OnDataSent);
-   
-  // Set peer (Pairing info)
-  peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  
-  // Register peer
-  if (esp_now_add_peer(&peerInfo) != ESP_OK)
-  {
-    Serial.println("Failed to add peer");
-    return;
-  }
+  // Send frame with button state
+  SendFrame();
 }
 
 //===============================================================
@@ -128,26 +104,64 @@ void setup()
 //===============================================================
 void loop()
 {
-  // Check for button press
-  if (!digitalRead(PIN_BUTTON) &&
-    buttonDebounce)
-  {
-    buttonDebounce = false;
+  // Wait 1 second
+  delay(1000);
 
-    // Set random data
-    exchangeData.throttle = random(0, 20);
-    exchangeData.steering = random(0, 20);
+  // Read button input
+  ReadButtonsState();
   
-    // Send esp now frame
-    esp_err_t result = esp_now_send(0, (uint8_t *) &exchangeData, sizeof(exchange_struct));
-    Serial.println(result == ESP_OK ? "Sent with success" : "Error sending the data");
-    
-    delay(500);
-  }
-  else
-  {
-    buttonDebounce = true;
-  }
+  // Resend frame with button state every Second
+  SendFrame();
 }
 
+//===============================================================
+// Reads the button states
+//===============================================================
+void ReadButtonsState()
+{
+  // Read button state
+  exchangeData.buttons = digitalRead(PIN_BUTTON1);
+  exchangeData.buttons |= digitalRead(PIN_BUTTON2) << 1;
+  exchangeData.buttons |= digitalRead(PIN_BUTTON3) << 2;
+  exchangeData.buttons |= digitalRead(PIN_BUTTON4) << 3;
+}
 
+//===============================================================
+// Send a frame with button states
+//===============================================================
+void SendFrame()
+{
+  // Set keep alive for complete frame
+  pinMode(PIN_KEEPALIVE, OUTPUT);
+  digitalWrite(PIN_KEEPALIVE, HIGH);
+
+  // Set LED on (pwm to 50%)
+  analogWrite(PIN_LED_VCC, 180);
+
+  // Init ESPNow
+  if (esp_now_init() == ESP_OK)
+  {
+    // Set ESP32 to full TX power and long range
+    esp_wifi_set_max_tx_power(127);
+    esp_wifi_set_protocol(WIFI_IF_STA , WIFI_PROTOCOL_LR);
+        
+    // Set peer (Pairing info)
+    peerInfo.channel = 0;
+    peerInfo.encrypt = false;
+    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+    
+    // Register peer
+    if (esp_now_add_peer(&peerInfo) == ESP_OK)
+    {
+      // Send esp now frame
+      esp_now_send(0, (uint8_t *) &exchangeData, sizeof(exchange_struct));
+    }
+  }
+
+  // Set LED off
+  analogWrite(PIN_LED_VCC, 0);
+
+  // Shut off
+  digitalWrite(PIN_KEEPALIVE, LOW);
+  pinMode(PIN_KEEPALIVE, INPUT);
+}
