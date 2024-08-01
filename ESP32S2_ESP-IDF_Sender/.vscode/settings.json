@@ -1,0 +1,13 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.adapterTargetName": "esp32s2",
+  "idf.espIdfPathWin": "C:\\Users\\Florian\\esp\\v5.3\\esp-idf",
+  "idf.openOcdConfigs": [
+    "interface/ftdi/esp32_devkitj_v1.cfg",
+    "target/esp32s2.cfg"
+  ],
+  "idf.portWin": "COM11",
+  "idf.pythonBinPathWin": "C:\\Users\\Florian\\.espressif\\python_env\\idf5.3_py3.11_env\\Scripts\\python.exe",
+  "idf.toolsPathWin": "C:\\Users\\Florian\\.espressif",
+  "idf.flashType": "UART"
+}

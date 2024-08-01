@@ -53,13 +53,13 @@
 //===============================================================
 // Structure example to receive data
 // Must match the sender structure
-typedef struct exchange_struct
+typedef struct exchange_struct_t
 {
-  int buttons;
-} exchange_struct;
+  uint8_t buttons;
+} exchange_struct_t;
 
 // Create a struct_message called exchangeData
-exchange_struct exchangeData;
+exchange_struct_t exchangeData;
 
 // Demo RGB LED
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(RGB_LED_COUNT, PIN_RGB_LED, NEO_GRB + NEO_KHZ800);

@@ -60,7 +60,7 @@ uint8_t broadcastAddress[] = { 0x84, 0xfc, 0xe6, 0xd1, 0x21, 0x94 };
 // Must match the sender structure
 typedef struct exchange_struct
 {
-  int buttons;
+  uint8_t buttons;
 } exchange_struct;
 
 // Create a struct_message called exchangeData
@@ -68,9 +68,6 @@ exchange_struct exchangeData;
 
 // ESP Now pairing info
 esp_now_peer_info_t peerInfo;
-
-// Input variable
-int buttons = 0;
 
 //===============================================================
 // Setup
@@ -120,10 +117,7 @@ void loop()
 void ReadButtonsState()
 {
   // Read button state
-  exchangeData.buttons = digitalRead(PIN_BUTTON1);
-  exchangeData.buttons |= digitalRead(PIN_BUTTON2) << 1;
-  exchangeData.buttons |= digitalRead(PIN_BUTTON3) << 2;
-  exchangeData.buttons |= digitalRead(PIN_BUTTON4) << 3;
+  exchangeData.buttons = digitalRead(PIN_BUTTON4) << 3 | digitalRead(PIN_BUTTON3) << 2 | digitalRead(PIN_BUTTON2) << 1 | digitalRead(PIN_BUTTON1);
 }
 
 //===============================================================
@@ -136,7 +130,7 @@ void SendFrame()
   digitalWrite(PIN_KEEPALIVE, HIGH);
 
   // Set LED on (pwm to 50%)
-  analogWrite(PIN_LED_VCC, 180);
+  analogWrite(PIN_LED_VCC, 125);
 
   // Init ESPNow
   if (esp_now_init() == ESP_OK)
