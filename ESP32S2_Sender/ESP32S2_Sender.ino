@@ -136,7 +136,7 @@ void SendFrame()
   if (esp_now_init() == ESP_OK)
   {
     // Set ESP32 to full TX power and long range
-    esp_wifi_set_max_tx_power(127);
+    esp_wifi_set_max_tx_power(84); // 21dBm (Max TX power)
     esp_wifi_set_protocol(WIFI_IF_STA , WIFI_PROTOCOL_LR);
         
     // Set peer (Pairing info)

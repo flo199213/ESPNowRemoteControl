@@ -44,9 +44,9 @@
 // Defines
 //===============================================================
 #define PIN_LED         15     // GPIO 15  -> Wemos S2 Mini PCB LED
-#define PIN_RGB_LED     16     // GPIO 16  -> WS2812B Demo LED
+#define PIN_RGB_LED     16     // GPIO 16  -> WS2812B Demo LEDs
 
-#define RGB_LED_COUNT   1
+#define RGB_LED_COUNT   23
 
 //===============================================================
 // Global Variables
@@ -63,6 +63,8 @@ exchange_struct_t exchangeData;
 
 // Demo RGB LED
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(RGB_LED_COUNT, PIN_RGB_LED, NEO_GRB + NEO_KHZ800);
+uint16_t hue = 0;
+int8_t count = 1;
 
 //===============================================================
 // Callback function that will be executed when data is received
@@ -84,11 +86,15 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len)
   // Toggle LED
   digitalWrite(PIN_LED, !digitalRead(PIN_LED));
 
-  // Set Demo RGB LED
-  uint8_t red = (button1 ? 125 : 0);
-  uint8_t green = button2 ? 125 : 0 + (button4 ? 125 : 0);
-  uint8_t blue = (button3 ? 125 : 0) + (button4 ? 125 : 0);
-  pixels.setPixelColor(0, pixels.Color(red, green, blue));
+  // Set Demo RGB LEDs
+  hue -=  button1 * 2500; // 65535 / 2500 = ~26 color steps
+  hue +=  button2 * 2500; // 65535 / 2500 = ~26 color steps
+  count = max(count - button3, 1);
+  count = min(count + button4, RGB_LED_COUNT);
+  for (int8_t index = 0; index < RGB_LED_COUNT; index++)
+  {
+    pixels.setPixelColor(index, index < count ? pixels.gamma32(pixels.ColorHSV(hue)) : 0);
+  }
   pixels.show();
 }
 
@@ -113,9 +119,9 @@ void setup()
     return;
   }
 
-  // Set ESP32 to full TX power and long range
-  esp_wifi_set_max_tx_power(127);
+  // Set ESP32 to long range and full TX power
   esp_wifi_set_protocol(WIFI_IF_STA , WIFI_PROTOCOL_LR);
+  esp_wifi_set_max_tx_power(84); // 21dBm (Max TX power)
   
   // Once ESPNow is successfully Init, we will register for recv CB to get recv packer info
   esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
