@@ -58,13 +58,13 @@ uint8_t broadcastAddress[] = { 0x84, 0xfc, 0xe6, 0xd1, 0x21, 0x94 };
 
 // Structure example to send data
 // Must match the sender structure
-typedef struct exchange_struct
+typedef struct exchange_struct_t
 {
   uint8_t buttons;
-} exchange_struct;
+} exchange_struct_t;
 
 // Create a struct_message called exchangeData
-exchange_struct exchangeData;
+exchange_struct_t exchangeData;
 
 // ESP Now pairing info
 esp_now_peer_info_t peerInfo;
@@ -148,7 +148,7 @@ void SendFrame()
     if (esp_now_add_peer(&peerInfo) == ESP_OK)
     {
       // Send esp now frame
-      esp_now_send(0, (uint8_t *) &exchangeData, sizeof(exchange_struct));
+      esp_now_send(0, (uint8_t *) &exchangeData, sizeof(exchange_struct_t));
     }
   }
 
