@@ -83,6 +83,7 @@ static const char *TAG = "ESPNow Sender";
 // Battery measurement
 #define PIN_VBATMESS                9               // GPIO 9  - Battery measurement
 #define ADC_CHANNEL_VBATMESS        ADC_CHANNEL_8   // GPIO 9, ADC channel 8
+#define ADC_CALIBRATION_VALUE       800
 
 // RGB LED defines
 #define PIN_RGB_LED                 5               // GPIO 5  - WS2812B RGB LED
@@ -94,6 +95,9 @@ static const char *TAG = "ESPNow Sender";
 
 // Time between ESPNow retransmission
 #define RETRANSMISSION_TIME_MS      500
+
+// Minimal battery voltage
+#define MINBATTERYVOLTAGE_mV        3000
 
 // Bit operations
 #define bitSet(value, bit) ((value) |= (1UL << (bit)))
@@ -179,7 +183,7 @@ static void ReadBatteryVoltage(uint8_t count)
   for (int index = 0; index < count; index++)
   {
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_VBATMESS, &rawValue));
-    rawValue_sum += (int64_t)rawValue;
+    rawValue_sum += (int64_t)rawValue + ADC_CALIBRATION_VALUE;
   }
   rawValue_sum /= count;
 
@@ -345,10 +349,13 @@ static SenderState FctTransmit(void)
   // Send button and voltage data
   ESP_LOGI(TAG, "Send Frame");
 
-  // Show BLUE color while sending frame
-  pStrip_a->set_pixel(pStrip_a, 0, 0, 0, 50);
+  // Check for empty battery and show blue or orange light
+  bool isEmpty = batteryVoltage_mV < MINBATTERYVOLTAGE_mV;
+  
+  // Show BLUE/ORANGE color while sending frame
+  pStrip_a->set_pixel(pStrip_a, 0, isEmpty ? 35 : 0, isEmpty ? 25 : 0, isEmpty ? 0 : 50);
   pStrip_a->refresh(pStrip_a, 100);
-
+  
   // Send ESPNow frame
   esp_err_t error = send_espnow_data();
 
