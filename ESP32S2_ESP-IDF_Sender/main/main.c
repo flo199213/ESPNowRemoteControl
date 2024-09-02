@@ -114,6 +114,7 @@ typedef enum
 //===============================================================
 // Global Variables
 //===============================================================
+// GPIOs
 const gpio_config_t gpioKeepAlive = { .pin_bit_mask =  BIT64(PIN_KEEPALIVE), .mode = GPIO_MODE_OUTPUT, .pull_up_en = true, .pull_down_en = false, .intr_type = GPIO_INTR_DISABLE };
 const gpio_config_t gpioButton1 = { .pin_bit_mask =  BIT64(PIN_BUTTON1), .mode = GPIO_MODE_INPUT, .pull_up_en = false, .pull_down_en = false, .intr_type = GPIO_INTR_DISABLE };
 const gpio_config_t gpioButton2 = { .pin_bit_mask =  BIT64(PIN_BUTTON2), .mode = GPIO_MODE_INPUT, .pull_up_en = false, .pull_down_en = false, .intr_type = GPIO_INTR_DISABLE };
@@ -134,7 +135,7 @@ static uint16_t hue = 0;
 
 // Event handle and ESPNow exchange data
 static EventGroupHandle_t s_evt_group;
-static exchange_struct_t exchangeData = {.data = 0 };
+static exchange_struct_t exchangeData = { .data = 0 };
 
 // ESPNow destination peer
 const esp_now_peer_info_t espNowDestination =
@@ -174,7 +175,7 @@ static void ReadBatteryVoltage(uint8_t count)
 {
   // Get raw battery adc value
   int rawValue;
-  int64_t rawValue_sum;
+  int64_t rawValue_sum = 0;
   for (int index = 0; index < count; index++)
   {
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_VBATMESS, &rawValue));
@@ -289,7 +290,7 @@ static SenderState CheckNewSenderState(bool active, SenderState defaultState)
     ReadButtonStates();
 
     // Read battery voltage
-    ReadBatteryVoltage(6);
+    ReadBatteryVoltage(100);
 
     // Read charging state
     ReadCharging();
@@ -431,7 +432,7 @@ int app_main()
   ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_VBATMESS, &adcChannelConfig));
 
   // Read battery voltage
-  ReadBatteryVoltage(6);
+  ReadBatteryVoltage(100);
 
   // Initialize RGB LED
   ESP_LOGI(TAG, "Initialize RGB LED");
