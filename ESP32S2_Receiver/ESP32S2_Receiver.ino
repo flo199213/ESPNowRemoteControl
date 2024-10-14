@@ -38,15 +38,11 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <WiFi.h>
-#include <Adafruit_NeoPixel.h>
 
 //===============================================================
 // Defines
 //===============================================================
 #define PIN_LED         15     // GPIO 15  -> Wemos S2 Mini PCB LED
-#define PIN_RGB_LED     16     // GPIO 16  -> WS2812B Demo LEDs
-
-#define RGB_LED_COUNT   23
 
 //===============================================================
 // Global Variables
@@ -55,47 +51,55 @@
 // Must match the sender structure
 typedef struct exchange_struct_t
 {
-  uint8_t buttons;
+  uint8_t data;
 } exchange_struct_t;
 
 // Create a struct_message called exchangeData
 exchange_struct_t exchangeData;
 
-// Demo RGB LED
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(RGB_LED_COUNT, PIN_RGB_LED, NEO_GRB + NEO_KHZ800);
-uint16_t hue = 0;
-int8_t count = 1;
+// LED brightness and speed
+int16_t brightness = 127;
+uint32_t lastToggle_ms = 0;
+int32_t toggleSpeed_ms = 300;
+bool toggle = false;
 
 //===============================================================
 // Callback function that will be executed when data is received
 //===============================================================
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len)
+void OnDataRecv(const uint8_t* mac_addr, const uint8_t* incomingData, int len)
 {
+  // Get MAC string
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+  // Copy data
   memcpy(&exchangeData, incomingData, sizeof(exchangeData));
+
+  // Debug output
   Serial.print("Bytes received: ");
   Serial.print(len);
-  Serial.print(" -> buttons: ");
-  Serial.println(exchangeData.buttons);
+  Serial.print(" -> data: ");
+  Serial.print(exchangeData.data);
+  Serial.print(" (MAC:");
+  Serial.print(macStr);
+  Serial.println(")");
 
   // Read single button values
-  uint8_t button1 = bitRead(exchangeData.buttons, 0);
-  uint8_t button2 = bitRead(exchangeData.buttons, 1);
-  uint8_t button3 = bitRead(exchangeData.buttons, 2);
-  uint8_t button4 = bitRead(exchangeData.buttons, 3);
-
-  // Toggle LED
-  digitalWrite(PIN_LED, !digitalRead(PIN_LED));
+  uint8_t button1 = bitRead(exchangeData.data, 0);
+  uint8_t button2 = bitRead(exchangeData.data, 1);
+  uint8_t button3 = bitRead(exchangeData.data, 2);
+  uint8_t button4 = bitRead(exchangeData.data, 3);
 
   // Set Demo RGB LEDs
-  hue -=  button1 * 2500; // 65535 / 2500 = ~26 color steps
-  hue +=  button2 * 2500; // 65535 / 2500 = ~26 color steps
-  count = max(count - button3, 1);
-  count = min(count + button4, RGB_LED_COUNT);
-  for (int8_t index = 0; index < RGB_LED_COUNT; index++)
-  {
-    pixels.setPixelColor(index, index < count ? pixels.gamma32(pixels.ColorHSV(hue)) : 0);
-  }
-  pixels.show();
+  brightness -=  button1 * 85;
+  brightness +=  button2 * 85;
+  brightness = max(brightness, (int16_t)10);
+  brightness = min(brightness, (int16_t)255);
+  toggleSpeed_ms -=  button4 * 200;
+  toggleSpeed_ms +=  button3 * 200;
+  toggleSpeed_ms = max(toggleSpeed_ms, (int32_t)100);
+  toggleSpeed_ms = min(toggleSpeed_ms, (int32_t)500);
+  analogWrite(PIN_LED, brightness);
 }
 
 //===============================================================
@@ -108,6 +112,7 @@ void setup()
   
   // Enable Status LED output
   pinMode(PIN_LED, OUTPUT);
+  analogWrite(PIN_LED, brightness);
   
   // Set device as a Wi-Fi station
   WiFi.mode(WIFI_STA);
@@ -125,23 +130,6 @@ void setup()
   
   // Once ESPNow is successfully Init, we will register for recv CB to get recv packer info
   esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
-
-  // Initialize RGB LED
-  pixels.begin();
-  pixels.setBrightness(255);
-
-  // Startup sequence
-  pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red
-  pixels.show();
-  delay(1000);
-  pixels.setPixelColor(0, pixels.Color(0, 255, 0)); // Green
-  pixels.show();
-  delay(1000);
-  pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue
-  pixels.show();
-  delay(1000);
-  pixels.setPixelColor(0, pixels.Color(255, 255, 255)); // White
-  pixels.show();
 }
 
 //===============================================================
@@ -149,4 +137,17 @@ void setup()
 //===============================================================
 void loop()
 {
+  if (millis() - lastToggle_ms > toggleSpeed_ms)
+  {
+    if (toggle)
+    {
+      analogWrite(PIN_LED, brightness);
+    }
+    else
+    {
+      analogWrite(PIN_LED, 0);
+    }
+    toggle = !toggle;
+    lastToggle_ms = millis();
+  }
 }
