@@ -65,11 +65,14 @@ typedef struct __attribute__((packed)) exchange_struct_t
 // Create a struct_message called messageData
 exchange_struct_t messageData;
 
-// LED brightness and speed
-int16_t brightness = 127;
+// Debug LED speed
 uint32_t lastToggle_ms = 0;
-int32_t toggleSpeed_ms = 300;
+const int32_t toggleSpeed_ms = 800;
 bool toggle = false;
+
+// Flash counter
+volatile uint8_t flashCount = 0;
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
 //===============================================================
 // Helper function to print the MAC address in a formatted style
@@ -153,18 +156,30 @@ void OnDataRecv(const esp_now_recv_info_t * esp_now_info, const uint8_t* data, i
   // Print Data
   ESP_LOGI(TAG, " - Buttons: B1=%d, B2=%d, B3=%d, B4=%d, BATT=%fV", button1, button2, button3, button4, batteryVoltage_V);
 
-  // Set Demo RGB LEDs
-  brightness -=  button1 * 85;
-  brightness +=  button2 * 85;
-  brightness = max(brightness, (int16_t)10);
-  brightness = min(brightness, (int16_t)255);
-  toggleSpeed_ms -=  button4 * 200;
-  toggleSpeed_ms +=  button3 * 200;
-  toggleSpeed_ms = max(toggleSpeed_ms, (int32_t)100);
-  toggleSpeed_ms = min(toggleSpeed_ms, (int32_t)500);
-  analogWrite(PIN_LED, brightness);
+  // Enter mux to avoid race condition
+  portENTER_CRITICAL_ISR(&mux);
 
-  Serial.flush();
+  // Set flashCount value
+  flashCount = 0;
+  if (button1)
+  {
+    flashCount = 1;
+  }
+  else if (button2)
+  {
+    flashCount = 2;
+  }
+  else if (button3)
+  {
+    flashCount = 3;
+  }
+  else if (button4)
+  {
+    flashCount = 4;
+  }
+
+  // Exit mux to avoid race condition
+  portEXIT_CRITICAL_ISR(&mux);
 }
 
 //===============================================================
@@ -191,7 +206,7 @@ void setup()
 
   // Enable Status LED output
   pinMode(PIN_LED, OUTPUT);
-  analogWrite(PIN_LED, brightness);
+  analogWrite(PIN_LED, 100);
   
   // Set device as a Wi-Fi station
   WiFi.mode(WIFI_STA);
@@ -220,7 +235,7 @@ void loop()
   {
     if (toggle)
     {
-      analogWrite(PIN_LED, brightness);
+      analogWrite(PIN_LED, 5); // Blink super dark (esp-now frame will flash super bright)
     }
     else
     {
@@ -228,5 +243,27 @@ void loop()
     }
     toggle = !toggle;
     lastToggle_ms = millis();
+  }
+
+  uint8_t currentFlashCount = 0;
+
+  // Enter mux to avoid race condition
+  portENTER_CRITICAL_ISR(&mux);
+
+  currentFlashCount = flashCount;
+  flashCount = 0;
+
+  // Exit mux to avoid race condition
+  portEXIT_CRITICAL_ISR(&mux);
+
+  if (currentFlashCount > 0)
+  {
+    for (uint8_t index = 0; index < currentFlashCount; index++)
+    {
+      analogWrite(PIN_LED, 255); // Flash super bright
+      delay(200);
+      analogWrite(PIN_LED, 0);
+      delay(300);
+    }
   }
 }
