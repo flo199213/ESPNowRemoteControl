@@ -91,7 +91,7 @@ static const char *TAG = "ESPNow Sender";
 #define LED_RMT_CHANNEL             0               // RMT channel 0
 
 // Destination MAC address
-#define MY_RECEIVER_MAC             { 0x80, 0x65, 0x99, 0xfa, 0x48, 0x02 }
+#define MY_RECEIVER_MAC             { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
 
 // Time between ESPNow retransmission
 #define RETRANSMISSION_TIME_MS      500
