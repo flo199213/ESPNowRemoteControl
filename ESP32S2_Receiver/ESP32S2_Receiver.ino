@@ -38,6 +38,7 @@
 #include <esp_log.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <esp_mac.h>
 #include <WiFi.h>
 
 //===============================================================
@@ -71,10 +72,54 @@ int32_t toggleSpeed_ms = 300;
 bool toggle = false;
 
 //===============================================================
+// Helper function to print the MAC address in a formatted style
+// to the Serial Monitor
+//===============================================================
+void PrintMacAddress(const char* label, esp_err_t espError, uint8_t* mac)
+{
+  if (espError == ESP_OK)
+  {
+    ESP_LOGI(TAG, "%-30s: %02X:%02X:%02X:%02X:%02X:%02X", label, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  }
+  else
+  {
+    ESP_LOGE(TAG, "%-30s: Failed", label);
+  }
+}
+
+//===============================================================
+// Helper function to print the MAC address in a formatted style
+// to the Serial Monitor
+//===============================================================
+void PrintAllMacAddresses()
+{
+  uint8_t mac[6];
+  ESP_LOGI(TAG, "==================================================");
+  ESP_LOGI(TAG, "READING ESP Board MAC ADDRESSES");
+  ESP_LOGI(TAG, "==================================================");
+  PrintMacAddress("Factory Base eFuse MAC", esp_efuse_mac_get_default(mac), mac);               // Factory-burned base MAC address from eFuses
+  ESP_LOGI(TAG, "--------------------------------------------------");
+  PrintMacAddress("Active Base MAC (RAM)", esp_read_mac(mac, ESP_MAC_BASE), mac);               // Currently active base MAC (might be modified via software in RAM)
+  PrintMacAddress("Wi-Fi Station (STA) MAC", esp_read_mac(mac, ESP_MAC_WIFI_STA), mac);         // Wi-Fi Station (STA) MAC address
+  PrintMacAddress("Wi-Fi Access Point (AP) MAC", esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP), mac);  // Wi-Fi Access Point (SoftAP) MAC address
+  PrintMacAddress("Bluetooth (BT) MAC", esp_read_mac(mac, ESP_MAC_BT), mac);                    // Bluetooth MAC address (ESP32-S2 does not support Bluetooth)
+  PrintMacAddress("Ethernet (ETH) MAC", esp_read_mac(mac, ESP_MAC_ETH), mac);                   // Ethernet MAC address
+  ESP_LOGI(TAG, "==================================================");
+}
+
+//===============================================================
 // Callback function that will be executed when data is received
 //===============================================================
-void OnDataRecv(const uint8_t* mac, const uint8_t* data, int length)
-{
+void OnDataRecv(const esp_now_recv_info_t * esp_now_info, const uint8_t* data, int length)
+{  
+  // Check for valid sender info
+  if (esp_now_info == NULL)
+  {
+    ESP_LOGE(TAG, "Error: esp_now_info is null");
+    return;
+  }
+  uint8_t* mac = esp_now_info->src_addr;
+
   // Print received bytes
   ESP_LOGI(TAG, "Bytes received: %d - MAC: %02x:%02x:%02x:%02x:%02x:%02x", length, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
@@ -141,6 +186,9 @@ void setup()
   delay(1000);
   ESP_LOGI(TAG, "ESP32Sx ESPNow Receiver");
   
+  // Print all mac adresses from ESP module
+  PrintAllMacAddresses();
+
   // Enable Status LED output
   pinMode(PIN_LED, OUTPUT);
   analogWrite(PIN_LED, brightness);
