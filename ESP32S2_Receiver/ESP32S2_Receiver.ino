@@ -35,6 +35,7 @@
 //===============================================================
 // Includes
 //===============================================================
+#include <esp_log.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <WiFi.h>
@@ -45,17 +46,23 @@
 #define PIN_LED         15     // GPIO 15  -> Wemos S2 Mini PCB LED
 
 //===============================================================
+// Constants
+//===============================================================
+static const char* TAG = "main";
+//static const uint8_t allowedSenderMAC[] = { 0x80, 0x65, 0x99, 0xfb, 0x43, 0x2A };
+
+//===============================================================
 // Global Variables
 //===============================================================
-// Structure example to receive data
+// Structure example to receive data - PACKED avoids Memory Errors
 // Must match the sender structure
-typedef struct exchange_struct_t
+typedef struct __attribute__((packed)) exchange_struct_t
 {
   uint8_t data;
 } exchange_struct_t;
 
-// Create a struct_message called exchangeData
-exchange_struct_t exchangeData;
+// Create a struct_message called messageData
+exchange_struct_t messageData;
 
 // LED brightness and speed
 int16_t brightness = 127;
@@ -66,29 +73,40 @@ bool toggle = false;
 //===============================================================
 // Callback function that will be executed when data is received
 //===============================================================
-void OnDataRecv(const uint8_t* mac_addr, const uint8_t* incomingData, int len)
+void OnDataRecv(const uint8_t* mac, const uint8_t* data, int length)
 {
-  // Get MAC string
-  char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  // Print received bytes
+  ESP_LOGI(TAG, "Bytes received: %d - MAC: %02x:%02x:%02x:%02x:%02x:%02x", length, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
+  // Check for valid sender MAC
+  /*if (memcmp(mac, allowedSenderMAC, 6) != 0)
+  {
+    ESP_LOGE(TAG, " -> Invalid Sender Error");
+    return;
+  }*/
+
+  // Check for valid data length
+  if (length != sizeof(messageData))
+  {
+    ESP_LOGE(TAG, " -> Invalid Data Length");
+    return;
+  }
+  
   // Copy data
-  memcpy(&exchangeData, incomingData, sizeof(exchangeData));
-
-  // Debug output
-  Serial.print("Bytes received: ");
-  Serial.print(len);
-  Serial.print(" -> data: ");
-  Serial.print(exchangeData.data);
-  Serial.print(" (MAC:");
-  Serial.print(macStr);
-  Serial.println(")");
+  memcpy(&messageData, data, sizeof(messageData));
 
   // Read single button values
-  uint8_t button1 = bitRead(exchangeData.data, 0);
-  uint8_t button2 = bitRead(exchangeData.data, 1);
-  uint8_t button3 = bitRead(exchangeData.data, 2);
-  uint8_t button4 = bitRead(exchangeData.data, 3);
+  uint8_t button1 = bitRead(messageData.data, 0);
+  uint8_t button2 = bitRead(messageData.data, 1);
+  uint8_t button3 = bitRead(messageData.data, 2);
+  uint8_t button4 = bitRead(messageData.data, 3);
+
+  // Calculate battery voltage
+  uint32_t batteryData = (messageData.data >> 4) & 0x0F;
+  double batteryVoltage_V = (double)batteryData * 5.0 / 16.0; // Battery voltage of 4 bit (0-16) to 0-5000mV
+
+  // Print Data
+  ESP_LOGI(TAG, " - Buttons: B1=%d, B2=%d, B3=%d, B4=%d, BATT=%fV", button1, button2, button3, button4, batteryVoltage_V);
 
   // Set Demo RGB LEDs
   brightness -=  button1 * 85;
@@ -100,6 +118,8 @@ void OnDataRecv(const uint8_t* mac_addr, const uint8_t* incomingData, int len)
   toggleSpeed_ms = max(toggleSpeed_ms, (int32_t)100);
   toggleSpeed_ms = min(toggleSpeed_ms, (int32_t)500);
   analogWrite(PIN_LED, brightness);
+
+  Serial.flush();
 }
 
 //===============================================================
@@ -107,8 +127,19 @@ void OnDataRecv(const uint8_t* mac_addr, const uint8_t* incomingData, int len)
 //===============================================================
 void setup()
 {
+  // Start USB CDC // (redundant, for build verification purposes only)
+  USBSerial.begin(); // <--- If you get an compile error here, you must
+  // enable "USB CDC On Boot" in the Arduino IDE Target settings for ESP32-S2!
+
   // Initialize serial monitor
   Serial.begin(115200);
+  
+  // Route ESP-IDF log messages (like ESP_LOGI) to the USB CDC interface
+  Serial.setDebugOutput(true);
+  
+  // Give the USB Serial port a brief moment to connect
+  delay(1000);
+  ESP_LOGI(TAG, "ESP32Sx ESPNow Receiver");
   
   // Enable Status LED output
   pinMode(PIN_LED, OUTPUT);
@@ -120,7 +151,7 @@ void setup()
   // Init ESPNow
   if (esp_now_init() != ESP_OK)
   {
-    Serial.println("Error initializing ESPNow");
+    ESP_LOGE(TAG, "Error initializing ESPNow");
     return;
   }
 
