@@ -208,9 +208,9 @@ static void ReadCharging()
 //===============================================================
 // Will be called on ESPNow packet send
 //===============================================================
-static void packet_sent_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
+static void packet_sent_cb(const esp_now_send_info_t *tx_info, esp_now_send_status_t status)
 {
-  if (mac_addr == NULL)
+  if (tx_info == NULL)
   {
     ESP_LOGE(TAG, "Send cb arg error");
     return;

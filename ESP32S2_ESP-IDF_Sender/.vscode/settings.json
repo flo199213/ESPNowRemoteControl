@@ -1,13 +1,24 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
   "idf.adapterTargetName": "esp32s2",
-  "idf.espIdfPathWin": "C:\\Users\\Florian\\esp\\v5.3\\esp-idf",
+  "idf.espIdfPathWin": "C:\\Users\\Florian\\esp\\v5.5-rc1\\esp-idf",
   "idf.openOcdConfigs": [
-    "interface/ftdi/esp32_devkitj_v1.cfg",
+    "interface/ftdi/esp_ftdi.cfg",
     "target/esp32s2.cfg"
   ],
-  "idf.portWin": "COM11",
+  "idf.portWin": "COM13",
   "idf.pythonBinPathWin": "C:\\Users\\Florian\\.espressif\\python_env\\idf5.3_py3.11_env\\Scripts\\python.exe",
   "idf.toolsPathWin": "C:\\Users\\Florian\\.espressif",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "idf.pythonInstallPath": "C:\\Users\\Florian\\.espressif\\tools\\idf-python\\3.11.2\\python.exe",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32s2"
+  },
+  "clangd.path": "C:\\Users\\Florian\\.espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=c:\\Users\\Florian\\Documents\\GitHub\\ESPNowRemoteControl\\ESP32S2_ESP-IDF_Sender\\build"
+  ],
+  "idf.currentSetup": "C:\\Users\\Florian\\esp\\v5.5-rc1\\esp-idf"
 }
