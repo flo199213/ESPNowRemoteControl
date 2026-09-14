@@ -97,7 +97,7 @@ static const char *TAG = "ESPNow Sender";
 #define RETRANSMISSION_TIME_MS      500
 
 // Minimal battery voltage
-#define MINBATTERYVOLTAGE_mV        3000
+#define MINBATTERYVOLTAGE_mV        3300
 
 // Bit operations
 #define bitSet(value, bit) ((value) |= (1UL << (bit)))
